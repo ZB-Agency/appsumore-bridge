@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-black text-gray-100 antialiased font-sans; }
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom Typography for Editorial Feel */
+.prose h1, .prose h2, .prose h3 { @apply tracking-tighter font-black text-white; }
+.prose p { @apply text-gray-400 leading-relaxed; }

@@ -1,0 +1,1 @@
+?type=ads hoặc ?type=saas
