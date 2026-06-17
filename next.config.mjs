@@ -1,9 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',      // Crucial for Netlify Free Plan
-  trailingSlash: true,   // Crucial for sub-folder routing (/advertorial/)
+  output: 'export',
+  trailingSlash: true,
   images: {
-    unoptimized: true,   // Required for static export
+    unoptimized: true,
   },
+  // REMOVE assetPrefix entirely. Do not include it.
 };
+
 export default nextConfig;
