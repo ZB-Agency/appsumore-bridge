@@ -8,6 +8,12 @@ export default function SegmentationPage() {
   // Environment Variable from Netlify
   const SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '';
 
+  const pushGtmEvent = (eventName: string, payload?: Record<string, unknown>) => {
+    if (typeof window === 'undefined') return;
+    const dataLayer = (window as any).dataLayer ??= [];
+    dataLayer.push({ event: eventName, ...payload });
+  };
+
   useEffect(() => {
     // Standard Browser API - Works perfectly on Static Exports
     const params = new URLSearchParams(window.location.search);
@@ -26,6 +32,8 @@ export default function SegmentationPage() {
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     if (gclid) formData.append('gclid', gclid);
+
+    pushGtmEvent('lead_form_submission', { form_type: 'lead_capture' });
 
     try {
       await fetch(SCRIPT_URL, { 

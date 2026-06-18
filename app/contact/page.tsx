@@ -5,10 +5,19 @@ export default function ContactPage() {
   const [sent, setSent] = useState(false);
   const SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '';
 
+  const pushGtmEvent = (eventName: string, payload?: Record<string, unknown>) => {
+    if (typeof window === 'undefined') return;
+    const dataLayer = (window as any).dataLayer ??= [];
+    dataLayer.push({ event: eventName, ...payload });
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     formData.append('type', 'contact_inquiry');
+
+    pushGtmEvent('lead_form_submission', { form_type: 'contact_inquiry' });
+
     await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: formData });
     setSent(true);
   };
