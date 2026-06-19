@@ -63,7 +63,7 @@ function QuizEngine() {
       setTimeout(() => {
         params.set('niche', formData.stack_focus);
         params.set('status', 'qualified');
-        window.location.href = `https://appsumore.com/tools?${params.toString()}`;
+        window.location.href = `https://leadforge-agency.appsumore.com/`;
       }, 500); // 500ms delay for GTM durability
 
     } catch (error) {
