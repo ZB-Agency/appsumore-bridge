@@ -1,118 +1,179 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 
-export default function SegmentationPage() {
+function QuizEngine() {
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [gclid, setGclid] = useState('');
-  
-  // Environment Variable from Netlify
+  const [formData, setFormData] = useState({
+    business_type: '',
+    stack_focus: '',
+    monthly_spend: '',
+    email: ''
+  });
+
   const SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '';
 
-  const pushGtmEvent = (eventName: string, payload?: Record<string, unknown>) => {
-    if (typeof window === 'undefined') return;
-    const dataLayer = (window as any).dataLayer ??= [];
-    dataLayer.push({ event: eventName, ...payload });
+  // Step 1: Business Role
+  const handleStep1 = (value: string) => {
+    setFormData({ ...formData, business_type: value });
+    setStep(2);
   };
 
-  useEffect(() => {
-    // Standard Browser API - Works perfectly on Static Exports
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('gclid');
-    if (id) setGclid(id);
-  }, []);
+  // Step 2: Stack Focus
+  const handleStep2 = (value: string) => {
+    setFormData({ ...formData, stack_focus: value });
+    setStep(3);
+  };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // Step 3: Spend Volume
+  const handleStep3 = (value: string) => {
+    setFormData({ ...formData, monthly_spend: value });
+    setStep(4);
+  };
+
+  // Final Step: Submission
+  const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!SCRIPT_URL) {
-      alert("System Error: Configuration missing. Please try again later.");
-      return;
-    }
-
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    if (gclid) formData.append('gclid', gclid);
 
-    pushGtmEvent('lead_form_submission', { form_type: 'lead_capture' });
+    const params = new URLSearchParams(window.location.search);
+    const finalData = new FormData();
+
+    finalData.append('type', 'lead_capture');
+    finalData.append('email', formData.email);
+    finalData.append('business_type', formData.business_type);
+    finalData.append('niche', formData.stack_focus);
+    finalData.append('spend', formData.monthly_spend);
+    finalData.append('gclid', params.get('gclid') || '');
 
     try {
-      await fetch(SCRIPT_URL, { 
-        method: 'POST', 
-        mode: 'no-cors', 
-        body: formData 
-      });
+      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: finalData });
 
-      // Redirect preserving all original parameters
-      const params = new URLSearchParams(window.location.search);
-      params.set('niche', formData.get('niche') as string);
-      window.location.href = `https://appsumore.com/tools?${params.toString()}`;
+      if (typeof window !== 'undefined') {
+        (window as any).dataLayer = (window as any).dataLayer || [];
+        (window as any).dataLayer.push({
+          'event': 'lead_form_submission',
+          'niche': formData.stack_focus,
+          'spend_range': formData.monthly_spend,
+          'business_role': formData.business_type
+        });
+      }
+
+      // 3. Small delay to ensure GTM finishes sending before redirect
+      setTimeout(() => {
+        params.set('niche', formData.stack_focus);
+        params.set('status', 'qualified');
+        window.location.href = `https://appsumore.com/tools?${params.toString()}`;
+      }, 500); // 500ms delay for GTM durability
+
     } catch (error) {
-      alert("Connection error. Please try again.");
+      console.error("Submission error", error);
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-blue-500/30">
-      <nav className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between">
+    <div className="max-w-xl mx-auto w-full">
+      {/* Progress Bar */}
+      <div className="mb-12 h-1 bg-white/10 rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-blue-600 transition-all duration-500" 
+          style={{ width: `${(step / 4) * 100}%` }}
+        ></div>
+      </div>
+
+      <div className="bg-gray-900 border border-white/10 p-8 md:p-12 rounded-[2.5rem] shadow-2xl">
+        {step === 1 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <h2 className="text-2xl font-black tracking-tight">01. What is your primary business role?</h2>
+            <div className="grid gap-3">
+              {['Agency Founder', 'Growth Director', 'Operations Manager', 'E-com Founder'].map((role) => (
+                <button 
+                  key={role}
+                  onClick={() => handleStep1(role)}
+                  className="w-full text-left p-4 rounded-xl bg-black border border-white/10 hover:border-blue-500 hover:bg-blue-900/10 transition-all font-medium"
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <h2 className="text-2xl font-black tracking-tight">02. Which infrastructure stack needs optimization?</h2>
+            <div className="grid gap-3">
+              {['Marketing (CRM & Ads)', 'Sales (Outreach & Data)', 'Ops (Cloud & Logic)', 'Full Stack Audit'].map((stack) => (
+                <button 
+                  key={stack}
+                  onClick={() => handleStep2(stack)}
+                  className="w-full text-left p-4 rounded-xl bg-black border border-white/10 hover:border-blue-500 hover:bg-blue-900/10 transition-all font-medium"
+                >
+                  {stack}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <h2 className="text-2xl font-black tracking-tight">03. Estimated monthly software expenditure?</h2>
+            <div className="grid gap-3">
+              {['$1,000 - $5,000', '$5,000 - $20,000', '$20,000 - $50,000', '$50,000+'].map((range) => (
+                <button 
+                  key={range}
+                  onClick={() => handleStep3(range)}
+                  className="w-full text-left p-4 rounded-xl bg-black border border-white/10 hover:border-blue-500 hover:bg-blue-900/10 transition-all font-medium"
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <form onSubmit={handleFinalSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="text-center">
+                <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-1 rounded uppercase mb-4 inline-block">Profile Qualified</span>
+                <h2 className="text-2xl font-black tracking-tight">Enter your work email to access the inventory.</h2>
+            </div>
+            <input 
+              type="email" 
+              required
+              placeholder="name@company.com"
+              className="w-full p-5 rounded-2xl bg-black border border-white/10 text-white focus:border-blue-500 outline-none transition-all"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+            <button 
+              disabled={loading}
+              className="w-full bg-blue-600 py-5 rounded-2xl font-black text-lg hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20"
+            >
+              {loading ? 'Securing Inventory Access...' : 'Unlock Rebate List'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function SegmentationPage() {
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col selection:bg-blue-500/30">
+      <nav className="max-w-6xl mx-auto px-6 py-8 w-full flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="/logo.webp" alt="AppSumore" width="32" height="32" className="object-contain" />
-          <span className="font-black text-lg uppercase tracking-tighter">APPSUMORE</span>
+          <img src="/logo.webp" alt="AppSumore" width="32" height="32" />
+          <span className="font-black text-lg tracking-tighter uppercase">APPSUMORE</span>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 py-12 grid lg:grid-cols-2 gap-16 items-start">
-        {/* Left Column */}
-        <div className="space-y-8">
-          <span className="text-blue-500 font-bold text-sm uppercase tracking-widest">Inventory Access Request</span>
-          <h1 className="text-5xl md:text-7xl font-black leading-tight tracking-tighter">
-            Unlock Institutional <br />
-            <span className="text-blue-600">SaaS Rebates.</span>
-          </h1>
-          
-          <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] shadow-2xl">
-            <h3 className="text-xs font-bold uppercase text-gray-500 tracking-widest mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              Active Rebate Windows (Q3)
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between p-4 bg-black/40 rounded-2xl border border-white/5 text-sm">
-                <span>HubSpot Enterprise Tier</span>
-                <span className="text-green-400 font-bold">25% Rebate</span>
-              </div>
-              <div className="flex justify-between p-4 bg-black/40 rounded-2xl border border-white/5 text-sm">
-                <span>AWS Infrastructure Pool</span>
-                <span className="text-green-400 font-bold">15% Credit</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column (The Form) */}
-        <div className="relative">
-          <form onSubmit={handleSubmit} className="bg-gray-900 border border-white/10 p-10 rounded-[2.5rem] space-y-6 shadow-2xl">
-            <input type="hidden" name="type" value="lead_capture" />
-            
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold ml-1">Work Email Address</label>
-              <input type="email" name="email" required placeholder="name@company.com" className="w-full p-4 rounded-xl bg-black border border-white/10 text-white outline-none focus:border-blue-500 transition-all" />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold ml-1">Infrastructure Focus</label>
-              <select name="niche" required className="w-full p-4 rounded-xl bg-black border border-white/10 text-white outline-none appearance-none">
-                <option value="marketing">Marketing Stack</option>
-                <option value="sales">Sales Stack</option>
-                <option value="ops">Dev/Ops Stack</option>
-              </select>
-            </div>
-
-            <button disabled={loading} className="w-full bg-blue-600 py-5 rounded-xl font-black text-lg hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 active:scale-[0.98] disabled:opacity-50">
-              {loading ? 'Verifying Profile...' : 'Request Inventory Access'}
-            </button>
-          </form>
-        </div>
-      </main>
+      <div className="flex-1 flex items-center justify-center p-6">
+        <QuizEngine />
+      </div>
     </div>
   );
 }
